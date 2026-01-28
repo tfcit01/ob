@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star 700II 內部構造與切刀機制視覺化</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --accent-color: #ff4500; /* 熱感頭加熱色 */
+            --bg-color: #f4f4f9;
+            --panel-bg: #ffffff;
+            --text-color: #333;
+            --font-main: 'Noto Sans TC', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #2c3e50;
+            color: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+        .subtitle { font-size: 0.9rem; opacity: 0.8; }
+
+        #app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 左側：SVG 視覺化區域 */
+        #visualization-area {
+            flex: 3;
+            position: relative;
+            background: #e0e5ec;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid #ccc;
+        }
+
+        svg {
+            width: 95%;
+            height: 95%;
+            max-width: 1000px;
+            /* box-shadow: 0 4px 15px rgba(0,0,0,0.1); */
+            background: white;
+            border-radius: 8px;
+        }
+
+        /* 右側：控制面板 */
+        #control-panel {
+            flex: 1;
+            min-width: 300px;
+            background: var(--panel-bg);
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .control-group {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+
+        .control-group h3 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: #555;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+        }
+
+        .status-display {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+            font-family: var(--font-main);
+            font-weight: 500;
+        }
+
+        button:hover { background: #004494; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        label { display: block; margin-bottom: 8px; font-size: 0.9rem; }
+        
+        input[type="range"] { width: 100%; }
+        input[type="checkbox"] { transform: scale(1.2); margin-right: 8px; }
+
+        /* SVG 內部樣式類別 (供 JS 切換用) */
+        .heat-active { fill: var(--accent-color) !important; filter: drop-shadow(0 0 5px var(--accent-color)); }
+        .transparent-casing { opacity: 0.3; stroke-dasharray: 5,5; }
+        
+        /* 紙屑動畫預備樣式 */
+        .dust-particle {
+            fill: #aaa;
+            opacity: 0; /* 預設隱藏 */
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Star 700II 機構視覺化</h1>
+            <span class="subtitle">熱感應列印與裁刀紙屑產生過程模擬</span>
+        </div>
+        <div style="font-size: 0.8rem; text-align: right;">
+            Model: TSP700II<br>Type: Thermal / Guillotine Cutter
+        </div>
+    </header>
+
+    <div id="app-container">
+        <main id="visualization-area">
+            <svg viewBox="0 0 800 600" id="printer-svg">
+                <defs>
+                    <linearGradient id="paper-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#fdfdfd;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#eee;stop-opacity:1" />
+                    </linearGradient>
+                    
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <g id="internal-components">
+                    <circle cx="200" cy="350" r="15" fill="#333" />
+                    <path d="M150,350 L250,350" stroke="#999" stroke-width="5" />
+                </g>
+
+                <g id="paper-module">
+                    <circle id="paper-roll-full" cx="200" cy="350" r="120" fill="url(#paper-gradient)" stroke="#ccc" stroke-width="2" />
+                    
+                    <path id="paper-path-main" 
+                          d="M200,230 Q200,150 450,150 L500,150" 
+                          fill="none" stroke="white" stroke-width="12" stroke-linecap="round" />
+                          
+                    <rect id="paper-receipt-printed" x="500" y="144" width="0" height="12" fill="white" stroke="#ccc" stroke-width="1" />
+                </g>
+
+                <g id="print-mechanism" transform="translate(500, 150)">
+                    <g id="thermal-head-group">
+                        <rect x="-15" y="6" width="30" height="40" rx="2" fill="#444" />
+                        <rect id="thermal-head" x="-15" y="6" width="30" height="5" fill="#555" />
+                        <path id="head-pressure-spring" d="M-5,46 L-5,60 M5,46 L5,60" stroke="#666" stroke-width="2" />
+                    </g>
+
+                    <g id="platen-roller-group">
+                        <circle id="platen-roller" cx="0" cy="-15" r="20" fill="#222" stroke="#111" />
+                        <line x1="0" y1="-15" x2="0" y2="-35" stroke="#555" stroke-width="2" transform="rotate(0, 0, -15)" id="roller-marker" />
+                    </g>
+                </g>
+
+                <g id="cutter-mechanism" transform="translate(560, 150)">
+                    <path id="cutter-blade-fixed" d="M-10,10 L10,10 L10,30 L-10,30 Z" fill="#777" />
+                    
+                    <g id="cutter-blade-moving-group" transform="translate(0, -40)">
+                        <path id="cutter-blade-moving" d="M-10,-10 L10,-10 L5,20 L-5,20 Z" fill="#999" stroke="#666" />
+                    </g>
+                </g>
+
+                <g id="chads-particles" transform="translate(560, 150)">
+                    <circle class="dust-particle" cx="-2" cy="0" r="1.5" />
+                    <circle class="dust-particle" cx="2" cy="2" r="1" />
+                    <circle class="dust-particle" cx="0" cy="-2" r="1.2" />
+                    <circle class="dust-particle" cx="-3" cy="3" r="0.8" />
+                    <circle class="dust-particle" cx="4" cy="-1" r="1" />
+                    <circle class="dust-particle" cx="1" cy="4" r="1.5" />
+                </g>
+
+                <g id="chassis-group">
+                    <path id="chassis-outline" 
+                          d="M50,450 L50,150 Q50,50 150,50 L650,50 Q750,50 750,150 L750,450 Z" 
+                          fill="#eef" stroke="#333" stroke-width="4" opacity="0.3" />
+                          
+                    <path id="cover-lid" 
+                          d="M150,50 L650,50 Q750,50 750,150 L650,150" 
+                          fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5,5" />
+                </g>
+
+                <g id="labels" font-size="12" fill="#333">
+                    <text x="160" y="350">紙卷 (Paper Roll)</text>
+                    <text x="500" y="90" text-anchor="middle">滾輪 (Platen)</text>
+                    <text x="500" y="240" text-anchor="middle">熱感頭 (Thermal Head)</text>
+                    <text x="560" y="80" text-anchor="middle">裁刀 (Cutter)</text>
+                </g>
+            </svg>
+        </main>
+
+        <aside id="control-panel">
+            <div class="control-group">
+                <h3>系統狀態</h3>
+                <div id="status-text" class="status-display">待機中 (Ready)</div>
+                <div id="step-indicator">步驟: 0 / 4</div>
+            </div>
+
+            <div class="control-group">
+                <h3>操作控制</h3>
+                <button id="btn-start">開始列印與裁切</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="btn-reset" disabled style="background: #666;">重置</button>
+                    <button id="btn-next" disabled style="background: #888;">單步執行 >></button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>視覺設定</h3>
+                <label>
+                    <input type="checkbox" id="chk-xray" checked> 
+                    X-Ray 透視模式
+                </label>
+                <label>
+                    <input type="checkbox" id="chk-dust" checked> 
+                    強調紙屑 (Dust Highlight)
+                </label>
+                <label>
+                    動畫速度
+                    <input type="range" id="rng-speed" min="0.5" max="2" step="0.5" value="1">
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <h3>構造說明</h3>
+                <p style="font-size: 0.85rem; color: #666; line-height: 1.6;">
+                    <strong>紙屑產生原因：</strong><br>
+                    Star 700II 使用裁刀模組切割紙張時，上刀與下刀的剪切動作會產生微小的紙纖維（Paper Dust）。這些纖維若堆積在熱感頭或感應器附近，可能導致列印不清或卡紙。
+                </label>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        console.log("SVG Visualization Initialized.");
+    </script>
+</body>
+</html>
