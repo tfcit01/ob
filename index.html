@@ -273,5 +273,189 @@
     <script>
         console.log("SVG Visualization Initialized.");
     </script>
+<script>
+    // ==========================================
+    // 1. 設定與變數 (Configuration & Variables)
+    // ==========================================
+    
+    const config = {
+        baseSpeed: 2.0,       // 基礎速度係數
+        maxPaperLength: 100,  // 收據列印的最大長度
+        headHeatColor: "#ff4500", // 加熱顏色
+        headCoolColor: "#555555", // 冷卻顏色
+    };
+
+    const state = {
+        step: 0,              // 當前步驟: 0=Idle, 1=Feed, 2=Cut, 3=Dust, 4=Eject
+        isAnimating: false,
+        rollerAngle: 0,
+        paperLength: 0,
+        cutterPos: 0,         // 0 = 開啟 (Top), 1 = 閉合 (Bottom)
+        dustParticles: [],    // 儲存紙屑物件
+    };
+
+    // DOM 元素快取 (避免重複查詢)
+    const ui = {
+        status: document.getElementById('status-text'),
+        step: document.getElementById('step-indicator'),
+        btnStart: document.getElementById('btn-start'),
+        btnReset: document.getElementById('btn-reset'),
+        chkXray: document.getElementById('chk-xray'),
+        chkDust: document.getElementById('chk-dust'),
+        rngSpeed: document.getElementById('rng-speed'),
+    };
+
+    const svgEls = {
+        roller: document.getElementById('platen-roller-group'), // 整個滾輪群組
+        rollerMarker: document.getElementById('roller-marker'), // 旋轉標記
+        paperPath: document.getElementById('paper-path-main'),
+        paperReceipt: document.getElementById('paper-receipt-printed'),
+        thermalHead: document.getElementById('thermal-head'),
+        chassis: document.getElementById('chassis-outline'),
+        cutterMoving: document.getElementById('cutter-blade-moving-group'),
+        particlesGroup: document.getElementById('chads-particles'),
+    };
+
+    // ==========================================
+    // 2. 狀態機與流程控制 (State Machine)
+    // ==========================================
+
+    function updateStatus(text, stepIndex) {
+        ui.status.textContent = text;
+        ui.step.textContent = `步驟: ${stepIndex} / 4`;
+        state.step = stepIndex;
+        
+        // 按鈕狀態管理
+        if (stepIndex === 0) {
+            ui.btnStart.disabled = false;
+            ui.btnReset.disabled = true;
+        } else {
+            ui.btnStart.disabled = true;
+            ui.btnReset.disabled = false;
+        }
+    }
+
+    function startSequence() {
+        if (state.isAnimating) return;
+        state.isAnimating = true;
+        runStep1_FeedAndHeat();
+    }
+
+    function resetSystem() {
+        // 停止所有動畫
+        state.isAnimating = false;
+        cancelAnimationFrame(animationFrameId);
+        
+        // 重置物理數值
+        state.rollerAngle = 0;
+        state.paperLength = 0;
+        state.cutterPos = 0;
+        
+        // 重置 SVG 屬性
+        svgEls.rollerMarker.setAttribute("transform", `rotate(0, 0, -15)`);
+        svgEls.paperReceipt.setAttribute("width", "0");
+        svgEls.thermalHead.style.fill = config.headCoolColor;
+        svgEls.cutterMoving.setAttribute("transform", "translate(0, -40)"); // 刀歸位
+        
+        // 重置粒子
+        resetParticles();
+
+        updateStatus("待機中 (Ready)", 0);
+    }
+
+    // ==========================================
+    // 3. 動畫邏輯 (Animation Logic)
+    // ==========================================
+    
+    let animationFrameId;
+    let lastTime = 0;
+
+    // --- Step 1: 進紙與加熱 ---
+    function runStep1_FeedAndHeat() {
+        updateStatus("列印中: 滾輪轉動與加熱...", 1);
+        
+        // 熱感頭變色 (模擬加熱)
+        svgEls.thermalHead.style.transition = "fill 0.3s";
+        svgEls.thermalHead.style.fill = config.headHeatColor;
+
+        function animate(timestamp) {
+            if (!state.isAnimating || state.step !== 1) return;
+
+            // 計算速度倍率
+            const speedMultiplier = parseFloat(ui.rngSpeed.value);
+            
+            // 1. 滾輪旋轉
+            state.rollerAngle += (5 * config.baseSpeed * speedMultiplier);
+            svgEls.rollerMarker.setAttribute("transform", `rotate(${state.rollerAngle}, 0, -15)`);
+
+            // 2. 紙張生長
+            state.paperLength += (0.5 * config.baseSpeed * speedMultiplier);
+            svgEls.paperReceipt.setAttribute("width", state.paperLength);
+
+            // 檢查是否完成列印
+            if (state.paperLength >= config.maxPaperLength) {
+                // 完成 Step 1，進入 Step 2
+                runStep2_Cut(); 
+            } else {
+                animationFrameId = requestAnimationFrame(animate);
+            }
+        }
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // --- Step 2: 裁刀動作 (預備函數) ---
+    function runStep2_Cut() {
+        // 停止加熱
+        svgEls.thermalHead.style.fill = config.headCoolColor;
+        
+        updateStatus("裁切中: 刀片下落...", 2);
+        
+        // 下個階段實作...
+        // 暫時先直接跳轉結束，以便測試第一階段
+        console.log("Step 1 完成，準備進入裁切...");
+        
+        // *暫時* 這裡呼叫一個 placeholder，下一部分我們會換成真的裁刀動畫
+        setTimeout(() => {
+            runStep3_DustAndEject(); // 這裡名稱稍微調整配合下一階段
+        }, 1000);
+    }
+    
+    function runStep3_DustAndEject() {
+         updateStatus("完成 (待實作紙屑)", 4);
+         state.isAnimating = false;
+    }
+
+    // 重置粒子 (預備用)
+    function resetParticles() {
+        const particles = svgEls.particlesGroup.querySelectorAll('.dust-particle');
+        particles.forEach(p => {
+            p.style.opacity = 0;
+            p.setAttribute('transform', 'translate(0,0)');
+        });
+    }
+
+    // ==========================================
+    // 4. 事件監聽 (Event Listeners)
+    // ==========================================
+
+    ui.btnStart.addEventListener('click', startSequence);
+    ui.btnReset.addEventListener('click', resetSystem);
+
+    // 透視模式切換
+    ui.chkXray.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            svgEls.chassis.classList.add('transparent-casing');
+            svgEls.chassis.style.opacity = 0.3;
+        } else {
+            svgEls.chassis.classList.remove('transparent-casing');
+            svgEls.chassis.style.opacity = 1.0;
+        }
+    });
+
+    // 初始化
+    resetSystem();
+
+</script>
+
 </body>
 </html>
