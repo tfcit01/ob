@@ -403,34 +403,162 @@
         animationFrameId = requestAnimationFrame(animate);
     }
 
-    // --- Step 2: 裁刀動作 (預備函數) ---
+    // --- Step 2: 裁刀動作 (鍘刀下切) ---
     function runStep2_Cut() {
-        // 停止加熱
+        // 確保熱感頭冷卻
         svgEls.thermalHead.style.fill = config.headCoolColor;
         
         updateStatus("裁切中: 刀片下落...", 2);
-        
-        // 下個階段實作...
-        // 暫時先直接跳轉結束，以便測試第一階段
-        console.log("Step 1 完成，準備進入裁切...");
-        
-        // *暫時* 這裡呼叫一個 placeholder，下一部分我們會換成真的裁刀動畫
-        setTimeout(() => {
-            runStep3_DustAndEject(); // 這裡名稱稍微調整配合下一階段
-        }, 1000);
-    }
-    
-    function runStep3_DustAndEject() {
-         updateStatus("完成 (待實作紙屑)", 4);
-         state.isAnimating = false;
+
+        let bladeY = -40; // 初始位置 (上方)
+        const cutSpeed = 4.0 * parseFloat(ui.rngSpeed.value); 
+        let hasCut = false;
+
+        function animateCut() {
+            if (!state.isAnimating) return;
+
+            // 刀片向下移動
+            bladeY += cutSpeed;
+            
+            // 限制最大行程 (0 為接觸點)
+            if (bladeY >= 0) {
+                bladeY = 0;
+            }
+
+            // 更新 DOM
+            svgEls.cutterMoving.setAttribute("transform", `translate(0, ${bladeY})`);
+
+            // 觸發紙屑 (當刀片到達切點附近時)
+            if (bladeY >= -5 && !hasCut) {
+                hasCut = true;
+                // 觸發粒子特效
+                if (ui.chkDust.checked) {
+                    runStep3_DustAnimation();
+                }
+            }
+
+            if (bladeY < 0) {
+                // 繼續下切
+                animationFrameId = requestAnimationFrame(animateCut);
+            } else {
+                // 切割到底，稍微停頓後退刀
+                setTimeout(() => {
+                    retractBlade();
+                }, 200);
+            }
+        }
+        animationFrameId = requestAnimationFrame(animateCut);
     }
 
-    // 重置粒子 (預備用)
+    // --- 退刀動作 (輔助函式) ---
+    function retractBlade() {
+        let bladeY = 0;
+        const retractSpeed = 2.0 * parseFloat(ui.rngSpeed.value);
+
+        function animateRetract() {
+            if (!state.isAnimating) return;
+
+            bladeY -= retractSpeed;
+            if (bladeY <= -40) {
+                bladeY = -40;
+                svgEls.cutterMoving.setAttribute("transform", `translate(0, ${bladeY})`);
+                
+                // 刀片復歸後，進入結束步驟
+                finishSequence();
+                return;
+            }
+
+            svgEls.cutterMoving.setAttribute("transform", `translate(0, ${bladeY})`);
+            animationFrameId = requestAnimationFrame(animateRetract);
+        }
+        animationFrameId = requestAnimationFrame(animateRetract);
+    }
+
+// --- Step 3: 紙屑粒子物理模擬 (核心特效) ---
+    function runStep3_DustAnimation() {
+        updateStatus("紙屑產生: 物理模擬中", 3);
+        
+        const particles = svgEls.particlesGroup.querySelectorAll('.dust-particle');
+        
+        // 初始化每個粒子的物理狀態
+        const particleStates = [];
+        
+        particles.forEach((p, index) => {
+            // 隨機顯示粒子
+            p.style.opacity = 1;
+            
+            // 給予隨機初速度 (模擬爆裂)
+            // vx: 隨機向左右擴散，稍偏向右側出紙口
+            // vy: 隨機向上噴發 (負值)
+            const vx = (Math.random() - 0.3) * 6; 
+            const vy = -(Math.random() * 5 + 2); 
+            
+            particleStates.push({
+                el: p,
+                x: 0,
+                y: 0,
+                vx: vx,
+                vy: vy,
+                life: 1.0 // 生命週期 (用於透明度)
+            });
+        });
+
+        function animateDust() {
+            if (!state.isAnimating) return;
+
+            let activeParticles = 0;
+
+            particleStates.forEach(p => {
+                if (p.life > 0) {
+                    activeParticles++;
+
+                    // 1. 更新位置 (速度疊加)
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    // 2. 施加重力 (Gravity)
+                    p.vy += 0.4; 
+
+                    // 3. 空氣阻力 (選用，讓橫向移動慢慢減速)
+                    p.vx *= 0.95;
+
+                    // 4. 生命週期衰減 (Fade out)
+                    p.life -= 0.02;
+                    if (p.life < 0) p.life = 0;
+
+                    // 5. 更新 DOM
+                    p.el.setAttribute('transform', `translate(${p.x}, ${p.y})`);
+                    p.el.style.opacity = p.life;
+                }
+            });
+
+            // 只要還有粒子在動，就繼續動畫迴圈
+            // 注意：這裡不阻擋主流程 (退刀)，是並行發生的視覺效果
+            if (activeParticles > 0) {
+                requestAnimationFrame(animateDust);
+            }
+        }
+        requestAnimationFrame(animateDust);
+    }
+
+
+// --- Step 4: 結束與完成 ---
+    function finishSequence() {
+        updateStatus("列印完成 (Remove Receipt)", 4);
+        state.isAnimating = false;
+        ui.btnStart.disabled = false;
+        ui.btnReset.disabled = false;
+    }
+
+    // --- 更新：重置粒子狀態 ---
+    // (這會取代 Part 2 簡單的版本)
     function resetParticles() {
         const particles = svgEls.particlesGroup.querySelectorAll('.dust-particle');
         particles.forEach(p => {
             p.style.opacity = 0;
             p.setAttribute('transform', 'translate(0,0)');
+            // 如果有設定 transition，要暫時移除以免重置時產生動畫
+            p.style.transition = "none"; 
         });
     }
 
