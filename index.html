@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Star 700II 機構視覺化 (最終修正版)</title>
+    <title>Star 700II 視覺化模擬器 (單步強化版)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -12,607 +12,240 @@
         :root {
             --primary-color: #0056b3;
             --accent-color: #ff4500;
+            --paper-color: #e6eef5; /* 淺青灰色，非純白 (修正1) */
             --bg-color: #f4f4f9;
             --panel-bg: #ffffff;
-            --text-color: #333;
             --font-main: 'Noto Sans TC', sans-serif;
         }
 
-        body {
-            font-family: var(--font-main);
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        body { font-family: var(--font-main); margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; display: flex; flex-direction: column; }
+        header { background: #2c3e50; color: #fff; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+        h1 { margin: 0; font-size: 1.4rem; }
+        
+        #app-container { display: flex; flex: 1; overflow: hidden; position: relative; }
+        #visualization-area { flex: 3; position: relative; background: #e0e5ec; display: flex; justify-content: center; align-items: center; }
+        .highlight-zone { position: absolute; top: 5%; right: 5%; width: 55%; height: 65%; background: rgba(255, 255, 0, 0.08); border: 2px dashed rgba(255, 215, 0, 0.4); border-radius: 10px; pointer-events: none; }
 
-        header {
-            background: #2c3e50;
-            color: #fff;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            z-index: 10;
-        }
-
-        h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
-        .subtitle { font-size: 0.9rem; opacity: 0.8; }
-
-        #app-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* 左側：SVG 視覺化區域 */
-        #visualization-area {
-            flex: 3;
-            position: relative;
-            background: #e0e5ec;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* 重點強調區塊 */
-        .highlight-zone {
-            position: absolute;
-            top: 5%;
-            right: 5%;
-            width: 55%;
-            height: 65%;
-            background-color: rgba(255, 255, 0, 0.1);
-            border: 2px dashed rgba(255, 215, 0, 0.6);
-            border-radius: 10px;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        svg {
-            width: 95%;
-            height: 95%;
-            max-width: 1200px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            z-index: 1;
-        }
-
-        /* 右側：控制面板 */
-        #control-panel {
-            flex: 1;
-            min-width: 320px;
-            max-width: 400px;
-            background: var(--panel-bg);
-            padding: 2rem;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
-            z-index: 2;
-        }
-
-        .control-group {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 1rem;
-        }
-
-        .control-group h3 {
-            margin-top: 0;
-            font-size: 1.1rem;
-            color: #555;
-            border-left: 4px solid var(--primary-color);
-            padding-left: 10px;
-            margin-bottom: 15px;
-        }
-
-        .status-display {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            margin-bottom: 10px;
-            border: 1px solid #e9ecef;
-            font-weight: 500;
-            color: var(--primary-color);
-        }
-
-        .step-badge {
-            display: inline-block;
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        button {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            width: 100%;
-            font-family: var(--font-main);
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        button:hover:not(:disabled) { background: #004494; transform: translateY(-1px); }
-        button:disabled { background: #a0a0a0; cursor: not-allowed; opacity: 0.7; }
+        svg { width: 95%; height: 95%; max-width: 1200px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        #control-panel { flex: 1; min-width: 320px; background: var(--panel-bg); padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
+        
+        .status-display { background: #f8f9fa; padding: 12px; border-radius: 6px; font-family: monospace; border: 1px solid #e9ecef; color: var(--primary-color); font-weight: bold; }
+        button { background: var(--primary-color); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: 500; }
+        button:hover:not(:disabled) { background: #004494; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         .btn-secondary { background: #6c757d; }
-        .btn-secondary:hover:not(:disabled) { background: #5a6268; }
 
-        label { display: flex; align-items: center; margin-bottom: 12px; font-size: 0.95rem; cursor: pointer; }
-        input[type="checkbox"] { transform: scale(1.2); margin-right: 10px; cursor: pointer; }
+        label { display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; margin-top: 5px; }
+        input[type="range"] { width: 100%; margin: 10px 0; }
         
-        .speed-control { display: flex; align-items: center; justify-content: space-between; }
-        input[type="range"] { flex: 1; margin: 0 10px; cursor: pointer; }
-        .speed-value { font-family: monospace; font-weight: bold; color: var(--primary-color); min-width: 40px; text-align: right; }
-
-        /* SVG 內部樣式 */
-        .transparent-casing { opacity: 0.15 !important; stroke-dasharray: 8,4; }
-        
-        /* 鮮明的紙屑樣式 (修正點6) */
-        .dust-particle { 
-            fill: #d32f2f; /* 鮮紅色 */
-            opacity: 0; 
-            pointer-events: none; 
-        }
-        
-        /* 紙張紋理動畫 */
-        @keyframes paperMove {
-            from { stroke-dashoffset: 0; }
-            to { stroke-dashoffset: 20; }
-        }
-        .paper-moving {
-            animation: paperMove 0.5s linear infinite;
-        }
-
+        .dust-particle { fill: #e63946; opacity: 0; } /* 鮮明深紅色 (修正2) */
+        .transparent-casing { opacity: 0.1 !important; stroke-dasharray: 5,5; }
     </style>
 </head>
 <body>
     <header>
-        <div>
-            <h1>Star 700II 機構視覺化</h1>
-            <span class="subtitle">熱感應列印與裁刀紙屑產生過程模擬 (Final Rev.)</span>
-        </div>
-        <div style="font-size: 0.8rem; text-align: right; opacity: 0.8;">
-            Model: TSP700II<br>Type: Thermal / Guillotine
-        </div>
+        <div><h1>TSP700II 機構模擬器</h1><span style="opacity:0.7">紙屑噴濺與單步操作校正版</span></div>
     </header>
 
     <div id="app-container">
         <main id="visualization-area">
             <div class="highlight-zone"></div>
             <svg viewBox="0 0 800 600" id="printer-svg">
-                <defs>
-                    <radialGradient id="paper-roll-gradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                        <stop offset="0%" style="stop-color:#f8f8f8;stop-opacity:1" />
-                        <stop offset="85%" style="stop-color:#e0e0e0;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#d0d0d0;stop-opacity:1" />
-                    </radialGradient>
-                    <filter id="soft-shadow">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
-                        <feOffset dx="1" dy="1" />
-                        <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
-                        <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
-                    </filter>
-                </defs>
-
-                <g id="chassis-group">
-                    <path id="chassis-outline" 
-                          d="M50,550 L50,100 Q50,20 150,20 L750,20 Q780,20 780,100 L780,550 Z" 
-                          fill="none" stroke="#aaa" stroke-width="3" stroke-dasharray="8,8" opacity="0.5" />
-                    <line x1="680" y1="180" x2="780" y2="180" stroke="#aaa" stroke-width="2" stroke-dasharray="4,4" />
-                </g>
-
                 <g id="paper-module" transform="translate(180, 400)">
-                    <path d="M-20,0 L20,0" stroke="#999" stroke-width="8" stroke-linecap="round" />
                     <g id="paper-roll-full-group">
-                        <circle cx="0" cy="0" r="110" fill="url(#paper-roll-gradient)" stroke="#bbb" stroke-width="2" filter="url(#soft-shadow)" />
-                        <g stroke="#ccc" stroke-width="2">
-                            <line x1="0" y1="-110" x2="0" y2="-80" />
-                            <line x1="0" y1="110" x2="0" y2="80" />
-                            <line x1="-110" y1="0" x2="-80" y2="0" />
-                            <line x1="110" y1="0" x2="80" y2="0" />
-                            <circle cx="0" cy="0" r="15" fill="#555" />
-                        </g>
+                        <circle cx="0" cy="0" r="100" fill="#d1d9e0" stroke="#aaa" />
+                        <line x1="0" y1="-100" x2="0" y2="100" stroke="#fff" opacity="0.5" />
+                        <line x1="-100" y1="0" x2="100" y2="0" stroke="#fff" opacity="0.5" />
                     </g>
-                    <text x="0" y="150" text-anchor="middle" font-size="16" fill="#666">紙卷 (Paper Roll)</text>
+                    <text x="0" y="130" text-anchor="middle" fill="#666">紙卷</text>
                 </g>
 
-                <g id="paper-path-group">
-                    <path id="paper-path-main" 
-                          d="M180,290 Q180,180 400,180 L595,180" 
-                          fill="none" stroke="white" stroke-width="14" stroke-linecap="round" 
-                          stroke-dasharray="0" /> <path d="M180,290 Q180,180 400,180 L595,180" 
-                          fill="none" stroke="#ddd" stroke-width="16" stroke-linecap="round" opacity="0.4" pointer-events="none" />
-                          
-                    </g>
+                <path id="paper-path-main" d="M180,300 Q180,180 400,180 L595,180" fill="none" stroke="var(--paper-color)" stroke-width="14" stroke-linecap="round" />
 
-                <g id="core-mechanism-scaled" transform="translate(550, 180) scale(1.8)">
+                <g transform="translate(550, 180) scale(1.8)">
+                    <g id="platen-roller-group" transform="translate(0, -20)">
+                        <circle r="22" fill="#222" />
+                        <line x1="0" y1="-22" x2="0" y2="-10" stroke="#666" stroke-width="3" id="roller-marker" />
+                    </g>
+                    <rect id="thermal-head" x="-20" y="20" width="40" height="10" fill="#555" rx="2" />
                     
-                    <g id="print-mechanism">
-                        <g id="thermal-head-group" transform="translate(0, 20)">
-                            <rect x="-20" y="0" width="40" height="30" rx="3" fill="#444" filter="url(#soft-shadow)" />
-                            <rect id="thermal-head" x="-18" y="2" width="36" height="6" fill="#555" />
-                            <text x="0" y="55" text-anchor="middle" font-size="10" fill="#444">熱感頭</text>
-                        </g>
+                    <line id="paper-receipt-printed" x1="25" y1="0" x2="25" y2="0" stroke="var(--paper-color)" stroke-width="7.8" />
 
-                        <g id="platen-roller-group" transform="translate(0, -20)">
-                            <circle id="platen-roller" cx="0" cy="0" r="22" fill="#222" stroke="#111" stroke-width="1.5" filter="url(#soft-shadow)" />
-                            <line x1="0" y1="-22" x2="0" y2="-10" stroke="#666" stroke-width="3" id="roller-marker" />
-                             <text x="0" y="-35" text-anchor="middle" font-size="10" fill="#444">滾輪</text>
-                        </g>
-                    </g>
-
-                    <line id="paper-receipt-printed" x1="25" y1="0" x2="25" y2="0" 
-                          stroke="white" stroke-width="7.8" stroke-linecap="butt" /> 
-                          <g id="cutter-mechanism" transform="translate(50, 0)">
-                        <text x="0" y="-55" text-anchor="middle" font-size="10" fill="#444" font-weight="bold">裁刀 (Cutter)</text>
-                        
-                        <path id="cutter-blade-fixed" d="M-12,10 L12,10 L10,25 L-10,25 Z" fill="#777" stroke="#555" stroke-width="0.5" />
-                        
+                    <g id="cutter-mechanism" transform="translate(50, 0)">
+                        <text y="-55" text-anchor="middle" font-size="9" font-weight="bold">裁刀</text>
+                        <path d="M-12,10 L12,10 L8,20 L-8,20 Z" fill="#777" />
                         <g id="cutter-blade-moving-group" transform="translate(0, -45)">
-                            <path id="cutter-blade-moving" 
-                                  d="M-14,-10 L14,-10 L12,5 L0,22 L-12,5 Z" 
-                                  fill="#999" stroke="#555" stroke-width="0.5" filter="url(#soft-shadow)" />
+                            <path d="M-14,-10 L14,-10 L12,5 L0,22 L-12,5 Z" fill="#999" stroke="#333" />
                         </g>
                     </g>
 
                     <g id="chads-particles" transform="translate(50, 0)">
-                        <circle class="dust-particle" cx="-1" cy="1" r="1.5" />
-                        <circle class="dust-particle" cx="2" cy="0" r="1.2" />
-                        <circle class="dust-particle" cx="0" cy="-2" r="1.3" />
-                        <circle class="dust-particle" cx="-3" cy="2" r="1.0" />
-                        <circle class="dust-particle" cx="3" cy="-1" r="1.4" />
-                        <circle class="dust-particle" cx="1" cy="3" r="1.5" />
+                        <circle class="dust-particle" cx="0" cy="0" r="1.8" />
+                        <circle class="dust-particle" cx="1" cy="1" r="2.0" />
+                        <circle class="dust-particle" cx="-1" cy="-1" r="1.6" />
+                        <circle class="dust-particle" cx="2" cy="-2" r="1.9" />
+                        <circle class="dust-particle" cx="-2" cy="2" r="2.1" />
+                        <circle class="dust-particle" cx="0" cy="3" r="1.7" />
                     </g>
+                </g>
 
-                </g> 
+                <path id="chassis-outline" d="M50,550 L50,100 Q50,20 150,20 L750,20 L750,550 Z" fill="none" stroke="#aaa" stroke-width="2" stroke-dasharray="5,5" />
             </svg>
         </main>
 
         <aside id="control-panel">
-            <div class="control-group">
-                <h3>系統狀態</h3>
-                <div id="status-text" class="status-display">待機中 (Ready)</div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span id="step-indicator" class="step-badge">步驟: 0 / 4</span>
-                    <span id="auto-mode-indicator" style="font-size: 0.8rem; color: var(--primary-color); opacity: 0;">[自動模式]</span>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <h3>操作控制</h3>
-                <button id="btn-start-auto">▶ 開始自動列印與裁切</button>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <button id="btn-next-step" class="btn-secondary">⏯ 單步執行 >></button>
-                    <button id="btn-reset" class="btn-secondary" disabled>↺ 重置系統</button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <h3>視覺設定</h3>
-                <label>
-                    <input type="checkbox" id="chk-xray" checked> 
-                    透視模式 (X-Ray View)
-                </label>
-                <label>
-                    <input type="checkbox" id="chk-dust" checked> 
-                    強調紙屑 (Vivid Particles)
-                </label>
-                
-                <label style="margin-bottom: 5px;">動畫速度倍率:</label>
-                <div class="speed-control">
-                    <span style="font-size: 0.8rem;">慢</span>
-                    <input type="range" id="rng-speed" min="0.2" max="3.0" step="0.1" value="1.0">
-                    <span style="font-size: 0.8rem;">快</span>
-                    <span id="speed-val-display" class="speed-value">1.0x</span>
-                </div>
-            </div>
+            <div class="status-display" id="status-text">Ready</div>
+            <div id="step-info" style="font-size:0.8rem; color:#888;">Step: 0/3</div>
             
-             <div class="control-group" style="border-bottom: none;">
-                <h3>構造原理說明</h3>
-                <p style="font-size: 0.85rem; color: #555; line-height: 1.7; background: #f9f9f9; padding: 10px; border-radius: 5px;">
-                    <strong>滾輪 (Platen):</strong> 負責夾緊紙張並帶動其通過熱感頭。<br>
-                    <strong>熱感頭 (Thermal Head):</strong> 加熱紙張熱敏層顯色。<br>
-                    <strong>裁刀 (Cutter):</strong> 
-                    <span style="color: #d9534f; font-weight: bold;">[紙屑來源]</span> 鍘刀運作時，刀鋒切斷紙張纖維會產生微小碎屑(Dust)。動畫中以紅色微粒強調其擴散過程。
-                </label>
+            <button id="btn-auto">▶ 自動執行全流程</button>
+            <button id="btn-next" class="btn-secondary">⏯ 下一步 (單步執行)</button>
+            <button id="btn-reset" class="btn-secondary">↺ 重置</button>
+
+            <hr style="width:100%; opacity:0.2">
+            
+            <label><input type="checkbox" id="chk-xray" checked> 透視模式</label>
+            <label>動畫速度: <span id="speed-txt">1.0</span>x</label>
+            <input type="range" id="rng-speed" min="0.1" max="3" step="0.1" value="1">
+
+            <div style="font-size: 0.8rem; color: #666; background: #fffbe6; padding: 10px; border: 1px solid #ffe58f; border-radius: 4px;">
+                <strong>物理觀察重點：</strong><br>
+                注意裁刀落下時，紅色紙屑不僅向右噴出，也會有部分碎屑<strong>向左噴往滾輪方向</strong>。這正是造成 TSP700II 內部積塵的原因。
             </div>
         </aside>
     </div>
 
     <script>
-        // ==========================================
-        // 1. 設定與變數
-        // ==========================================
-        
-        const config = {
-            baseSpeed: 2.5,
-            maxPaperLength: 70, // 收據長度
-            headHeatColor: "#ff4500",
-            headCoolColor: "#555555",
-            cutterTravelDistance: 45, // 增加一點行程讓刀片抬得更高
-        };
-
-        const state = {
-            step: 0,
-            isAnimating: false,
-            isAutoRun: false,
-            rollerAngle: 0,
-            bigRollAngle: 0,
-            paperLength: 0,
-            cutterY: -config.cutterTravelDistance,
-        };
+        const config = { maxPaper: 70, travel: 45 };
+        const state = { step: 0, animating: false, auto: false, paper: 0, roller: 0, cutterY: -config.travel };
 
         const ui = {
             status: document.getElementById('status-text'),
-            stepBadge: document.getElementById('step-indicator'),
-            autoIndicator: document.getElementById('auto-mode-indicator'),
-            btnStartAuto: document.getElementById('btn-start-auto'),
-            btnNext: document.getElementById('btn-next-step'),
-            btnReset: document.getElementById('btn-reset'),
-            chkXray: document.getElementById('chk-xray'),
-            chkDust: document.getElementById('chk-dust'),
-            rngSpeed: document.getElementById('rng-speed'),
-            speedDisplay: document.getElementById('speed-val-display'),
+            step: document.getElementById('step-info'),
+            btnAuto: document.getElementById('btn-auto'),
+            btnNext: document.getElementById('btn-next'),
+            speed: document.getElementById('rng-speed'),
+            speedTxt: document.getElementById('speed-txt')
         };
 
-        const svgEls = {
-            chassis: document.getElementById('chassis-outline'),
-            bigPaperRoll: document.getElementById('paper-roll-full-group'),
-            paperPath: document.getElementById('paper-path-main'),
-            rollerMarker: document.getElementById('roller-marker'),
-            thermalHead: document.getElementById('thermal-head'),
-            paperReceipt: document.getElementById('paper-receipt-printed'),
-            cutterMoving: document.getElementById('cutter-blade-moving-group'),
-            particlesGroup: document.getElementById('chads-particles'),
+        const svg = {
+            roll: document.getElementById('paper-roll-full-group'),
+            marker: document.getElementById('roller-marker'),
+            receipt: document.getElementById('paper-receipt-printed'),
+            cutter: document.getElementById('cutter-blade-moving-group'),
+            head: document.getElementById('thermal-head'),
+            particles: document.querySelectorAll('.dust-particle')
         };
 
-        let animationFrameId;
-
-        // ==========================================
-        // 2. 控制邏輯
-        // ==========================================
-
-        function updateUIState(text, stepNum, busy = false) {
-            ui.status.textContent = text;
-            ui.stepBadge.textContent = `步驟: ${stepNum} / 4`;
-            state.step = stepNum;
-            state.isAnimating = busy;
-            ui.autoIndicator.style.opacity = state.isAutoRun ? 1 : 0;
-            ui.btnStartAuto.disabled = busy || stepNum !== 0;
-            ui.btnNext.disabled = busy || stepNum === 4;
-            ui.btnReset.disabled = busy || stepNum === 0;
+        function updateUI(msg, step, busy) {
+            ui.status.textContent = msg;
+            ui.step.textContent = `Step: ${step}/3`;
+            state.step = step;
+            state.animating = busy;
+            ui.btnAuto.disabled = busy || step !== 0;
+            ui.btnNext.disabled = busy || step >= 3;
         }
 
-        function startAutoSequence() {
-            if (state.isAnimating) return;
-            state.isAutoRun = true;
-            runStep1_Feed();
-        }
-
-        function handleNextStep() {
-            if (state.isAnimating) return;
-            state.isAutoRun = false;
-            switch (state.step) {
-                case 0: runStep1_Feed(); break;
-                case 1: runStep2_CutAction(); break;
-                default: break;
-            }
-        }
-
-        function resetSystem() {
-            cancelAnimationFrame(animationFrameId);
-            state.isAnimating = false;
-            state.isAutoRun = false;
+        // --- 動作：1. 進紙 ---
+        function actionFeed() {
+            updateUI("進紙列印中...", 1, true);
+            svg.head.style.fill = "#ff4500";
             
-            state.rollerAngle = 0;
-            state.bigRollAngle = 0;
-            state.paperLength = 0;
-            state.cutterY = -config.cutterTravelDistance;
-            
-            svgEls.rollerMarker.setAttribute("transform", `rotate(0, 0, 0)`);
-            svgEls.bigPaperRoll.setAttribute("transform", `rotate(0, 0, 0)`);
-            
-            // 重置收據
-            svgEls.paperReceipt.setAttribute("x2", "25");
-            svgEls.paperReceipt.setAttribute("transform", "rotate(0, 25, 0)"); // 復歸旋轉
-            svgEls.paperReceipt.style.opacity = 1;
+            function frame() {
+                const s = parseFloat(ui.speed.value) * 2;
+                state.paper += 0.5 * s;
+                state.roller += 5 * s;
+                svg.marker.setAttribute("transform", `rotate(${state.roller}, 0, -15)`);
+                svg.roll.setAttribute("transform", `rotate(${state.roller * 0.3}, 0, 0)`);
+                svg.receipt.setAttribute("x2", 25 + state.paper);
 
-            svgEls.thermalHead.style.fill = config.headCoolColor;
-            svgEls.cutterMoving.setAttribute("transform", `translate(0, ${state.cutterY})`);
-            
-            resetParticles();
-            updateUIState("待機中 (Ready)", 0);
-        }
-
-        function getSpeedMultiplier() { return parseFloat(ui.rngSpeed.value); }
-
-        // ==========================================
-        // 3. 動畫核心
-        // ==========================================
-
-        // --- Step 1: 進紙 ---
-        function runStep1_Feed() {
-            updateUIState("列印中: 紙張輸出...", 1, true);
-            svgEls.thermalHead.style.transition = "fill 0.3s";
-            svgEls.thermalHead.style.fill = config.headHeatColor;
-
-            function animateFeed() {
-                const speed = getSpeedMultiplier() * config.baseSpeed;
-                
-                // 1. 小滾輪順時針
-                state.rollerAngle += (5 * speed);
-                svgEls.rollerMarker.setAttribute("transform", `rotate(${state.rollerAngle}, 0, -15)`);
-
-                // 2. 大紙卷順時針 (修正點2)
-                state.bigRollAngle += (1.5 * speed); // 改為 + (Clockwise)
-                svgEls.bigPaperRoll.setAttribute("transform", `rotate(${state.bigRollAngle}, 0, 0)`);
-
-                // 3. 收據變長 (Line x2 增加)
-                state.paperLength += (0.5 * speed);
-                // 起點是 25, 終點 = 25 + length
-                svgEls.paperReceipt.setAttribute("x2", 25 + state.paperLength);
-
-                if (state.paperLength >= config.maxPaperLength) {
-                    svgEls.thermalHead.style.fill = config.headCoolColor;
-                    if (state.isAutoRun) {
-                        runStep2_CutAction();
-                    } else {
-                        updateUIState("列印完成，等待裁切", 1, false);
-                    }
+                if (state.paper >= config.maxPaper) {
+                    svg.head.style.fill = "#555";
+                    updateUI("列印完成。等待裁切...", 1, false);
+                    if (state.auto) actionCut();
                 } else {
-                    animationFrameId = requestAnimationFrame(animateFeed);
+                    requestAnimationFrame(frame);
                 }
             }
-            animationFrameId = requestAnimationFrame(animateFeed);
+            requestAnimationFrame(frame);
         }
 
-        // --- Step 2 & 3: 裁切與物理 ---
-        function runStep2_CutAction() {
-            updateUIState("裁切中...", 2, true);
-            let hasCut = false;
+        // --- 動作：2. 裁切與噴濺 ---
+        function actionCut() {
+            updateUI("執行裁切動作...", 2, true);
+            let hasSprayed = false;
 
-            function animateCutDown() {
-                const speed = getSpeedMultiplier() * config.baseSpeed * 1.5;
-                state.cutterY += speed;
-                
-                // 觸發紙屑
-                if (state.cutterY >= 5 && !hasCut) { // 稍微切深一點才觸發
-                    hasCut = true;
-                    if (ui.chkDust.checked) spawnDustParticles();
-                    
-                    // 模擬紙張斷開後的微小掉落 (視覺細節)
-                    dropReceipt();
+            function frame() {
+                const s = parseFloat(ui.speed.value) * 3;
+                state.cutterY += s;
+                svg.cutter.setAttribute("transform", `translate(0, ${state.cutterY})`);
+
+                if (state.cutterY >= 0 && !hasSprayed) {
+                    hasSprayed = true;
+                    spawnDust(); // 觸發物理紙屑
                 }
 
-                if (state.cutterY >= 20) { // 切到底
-                    state.cutterY = 20;
-                    svgEls.cutterMoving.setAttribute("transform", `translate(0, ${state.cutterY})`);
-                    setTimeout(() => retractBlade(), 150);
+                if (state.cutterY >= 15) { // 切到底
+                    state.cutterY = 15;
+                    svg.cutter.setAttribute("transform", `translate(0, 15)`);
+                    updateUI("裁切完畢。等待復歸...", 2, false);
+                    if (state.auto) setTimeout(actionRetract, 500);
                 } else {
-                    svgEls.cutterMoving.setAttribute("transform", `translate(0, ${state.cutterY})`);
-                    animationFrameId = requestAnimationFrame(animateCutDown);
+                    requestAnimationFrame(frame);
                 }
             }
-            animationFrameId = requestAnimationFrame(animateCutDown);
+            requestAnimationFrame(frame);
         }
 
-        // 收據掉落動畫
-        function dropReceipt() {
-             const receipt = svgEls.paperReceipt;
-             receipt.style.transition = "transform 0.5s ease-out";
-             // 繞著左端點稍微順時針垂下
-             receipt.setAttribute("transform", "rotate(5, 25, 0)");
-        }
-
-        function retractBlade() {
-            updateUIState("退刀中...", 3, true);
-            function animateRetract() {
-                const speed = getSpeedMultiplier() * config.baseSpeed * 1.2;
-                state.cutterY -= speed;
-                
-                if (state.cutterY <= -config.cutterTravelDistance) {
-                    state.cutterY = -config.cutterTravelDistance;
-                    svgEls.cutterMoving.setAttribute("transform", `translate(0, ${state.cutterY})`);
-                    finishSequence();
+        // --- 動作：3. 復歸 ---
+        function actionRetract() {
+            updateUI("刀片復歸中...", 3, true);
+            function frame() {
+                const s = parseFloat(ui.speed.value) * 2;
+                state.cutterY -= s;
+                svg.cutter.setAttribute("transform", `translate(0, ${state.cutterY})`);
+                if (state.cutterY <= -config.travel) {
+                    state.cutterY = -config.travel;
+                    svg.cutter.setAttribute("transform", `translate(0, ${state.cutterY})`);
+                    updateUI("全流程完成", 3, false);
                 } else {
-                    svgEls.cutterMoving.setAttribute("transform", `translate(0, ${state.cutterY})`);
-                    animationFrameId = requestAnimationFrame(animateRetract);
+                    requestAnimationFrame(frame);
                 }
             }
-            animationFrameId = requestAnimationFrame(animateRetract);
+            requestAnimationFrame(frame);
         }
 
-        function finishSequence() {
-            state.isAutoRun = false;
-            updateUIState("流程結束", 4, false);
-        }
-
-        // ==========================================
-        // 4. 粒子系統 (高對比版)
-        // ==========================================
-        
-        function spawnDustParticles() {
-            const particles = svgEls.particlesGroup.querySelectorAll('.dust-particle');
-            const particleStates = [];
-            
-            particles.forEach((p) => {
+        // --- 物理效果：向左噴濺的紙屑 ---
+        function spawnDust() {
+            svg.particles.forEach(p => {
                 p.style.opacity = 1;
-                // 擴散力道加大
-                const vx = (Math.random() - 0.2) * 8; // 偏向右側噴發
-                const vy = -(Math.random() * 5 + 3); 
-                
-                particleStates.push({
-                    el: p, x: 0, y: 0, vx: vx, vy: vy,
-                    life: 1.0, gravity: 0.6
-                });
-            });
+                // 修正2：噴濺方向調整。 vx 現在有較大概率產生向左(負值)的速度
+                const vx = (Math.random() - 0.7) * 12; // -8.4 到 +3.6，偏向左側(滾輪方向)
+                const vy = -(Math.random() * 8 + 2);
+                let px = 0, py = 0, curVy = vy, life = 1.0;
 
-            function animateDust() {
-                let activeCount = 0;
-                particleStates.forEach(p => {
-                    if (p.life > 0) {
-                        activeCount++;
-                        p.x += p.vx;
-                        p.y += p.vy;
-                        p.vy += p.gravity;
-                        p.vx *= 0.95;
-                        p.life -= 0.02; // 消失慢一點
-
-                        p.el.setAttribute('transform', `translate(${p.x}, ${p.y}) scale(${0.8 + p.life*0.5})`);
-                        p.el.style.opacity = p.life;
-                    }
-                });
-
-                if (activeCount > 0 && state.isAnimating) {
-                   requestAnimationFrame(animateDust);
+                function anim() {
+                    px += vx; py += curVy; curVy += 0.5; life -= 0.02;
+                    p.setAttribute('transform', `translate(${px}, ${py}) scale(${life})`);
+                    p.style.opacity = life;
+                    if (life > 0) requestAnimationFrame(anim);
                 }
-            }
-            requestAnimationFrame(animateDust);
-        }
-
-        function resetParticles() {
-            const particles = svgEls.particlesGroup.querySelectorAll('.dust-particle');
-            particles.forEach(p => {
-                p.style.opacity = 0;
-                p.setAttribute('transform', 'translate(0,0)');
-                p.style.transition = "none";
+                requestAnimationFrame(anim);
             });
         }
 
-        // ==========================================
-        // 5. 事件
-        // ==========================================
-        ui.btnStartAuto.addEventListener('click', startAutoSequence);
-        ui.btnNext.addEventListener('click', handleNextStep);
-        ui.btnReset.addEventListener('click', resetSystem);
-        ui.rngSpeed.addEventListener('input', (e) => {
-            ui.speedDisplay.textContent = parseFloat(e.target.value).toFixed(1) + "x";
-        });
-        ui.chkXray.addEventListener('change', (e) => {
-            if (e.target.checked) svgEls.chassis.classList.add('transparent-casing');
-            else svgEls.chassis.classList.remove('transparent-casing');
-        });
-
-        // Init
-        updateUIState("待機中 (Ready)", 0);
-        if(ui.chkXray.checked) svgEls.chassis.classList.add('transparent-casing');
-
+        // 事件監聽
+        ui.btnAuto.onclick = () => { state.auto = true; actionFeed(); };
+        ui.btnNext.onclick = () => {
+            state.auto = false;
+            if (state.step === 0) actionFeed();
+            else if (state.step === 1) actionCut();
+            else if (state.step === 2) actionRetract();
+        };
+        document.getElementById('btn-reset').onclick = () => location.reload();
+        ui.speed.oninput = (e) => ui.speedTxt.textContent = e.target.value;
+        document.getElementById('chk-xray').onclick = (e) => {
+            document.getElementById('chassis-outline').classList.toggle('transparent-casing', e.target.checked);
+        };
     </script>
 </body>
 </html>
