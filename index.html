@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Star 700II 視覺化模擬器 (單步強化版)</title>
+    <title>Star 700II 視覺化模擬器 (外觀與標籤修正版)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -11,8 +11,7 @@
     <style>
         :root {
             --primary-color: #0056b3;
-            --accent-color: #ff4500;
-            --paper-color: #e6eef5; /* 淺青灰色，非純白 (修正1) */
+            --paper-color: #e6eef5; /* 淺青灰色紙張 */
             --bg-color: #f4f4f9;
             --panel-bg: #ffffff;
             --font-main: 'Noto Sans TC', sans-serif;
@@ -24,7 +23,7 @@
         
         #app-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         #visualization-area { flex: 3; position: relative; background: #e0e5ec; display: flex; justify-content: center; align-items: center; }
-        .highlight-zone { position: absolute; top: 5%; right: 5%; width: 55%; height: 65%; background: rgba(255, 255, 0, 0.08); border: 2px dashed rgba(255, 215, 0, 0.4); border-radius: 10px; pointer-events: none; }
+        /* 修正1：已移除 highlight-zone */
 
         svg { width: 95%; height: 95%; max-width: 1200px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         #control-panel { flex: 1; min-width: 320px; background: var(--panel-bg); padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
@@ -38,19 +37,22 @@
         label { display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; margin-top: 5px; }
         input[type="range"] { width: 100%; margin: 10px 0; }
         
-        .dust-particle { fill: #e63946; opacity: 0; } /* 鮮明深紅色 (修正2) */
-        .transparent-casing { opacity: 0.1 !important; stroke-dasharray: 5,5; }
+        .dust-particle { fill: #e63946; opacity: 0; } /* 鮮明深紅色紙屑 */
+        .transparent-casing { opacity: 0.15 !important; stroke-dasharray: 8,4; }
     </style>
 </head>
 <body>
     <header>
-        <div><h1>TSP700II 機構模擬器</h1><span style="opacity:0.7">紙屑噴濺與單步操作校正版</span></div>
+        <div><h1>TSP700II 機構模擬器</h1><span style="opacity:0.7">外觀與標籤修正版</span></div>
     </header>
 
     <div id="app-container">
         <main id="visualization-area">
-            <div class="highlight-zone"></div>
             <svg viewBox="0 0 800 600" id="printer-svg">
+                <path id="chassis-outline" 
+                      d="M50,550 L50,50 L680,50 Q780,50 780,150 L780,550 Z" 
+                      fill="none" stroke="#aaa" stroke-width="3" stroke-dasharray="8,8" opacity="0.4" />
+
                 <g id="paper-module" transform="translate(180, 400)">
                     <g id="paper-roll-full-group">
                         <circle cx="0" cy="0" r="100" fill="#d1d9e0" stroke="#aaa" />
@@ -66,8 +68,12 @@
                     <g id="platen-roller-group" transform="translate(0, -20)">
                         <circle r="22" fill="#222" />
                         <line x1="0" y1="-22" x2="0" y2="-10" stroke="#666" stroke-width="3" id="roller-marker" />
+                        <text y="-35" text-anchor="middle" font-size="9" fill="#444">滾輪</text>
                     </g>
-                    <rect id="thermal-head" x="-20" y="20" width="40" height="10" fill="#555" rx="2" />
+                    <g transform="translate(0, 20)">
+                        <rect id="thermal-head" x="-20" y="0" width="40" height="10" fill="#555" rx="2" />
+                        <text y="25" text-anchor="middle" font-size="9" fill="#444">熱感頭</text>
+                    </g>
                     
                     <line id="paper-receipt-printed" x1="25" y1="0" x2="25" y2="0" stroke="var(--paper-color)" stroke-width="7.8" />
 
@@ -88,8 +94,6 @@
                         <circle class="dust-particle" cx="0" cy="3" r="1.7" />
                     </g>
                 </g>
-
-                <path id="chassis-outline" d="M50,550 L50,100 Q50,20 150,20 L750,20 L750,550 Z" fill="none" stroke="#aaa" stroke-width="2" stroke-dasharray="5,5" />
             </svg>
         </main>
 
@@ -108,8 +112,8 @@
             <input type="range" id="rng-speed" min="0.1" max="3" step="0.1" value="1">
 
             <div style="font-size: 0.8rem; color: #666; background: #fffbe6; padding: 10px; border: 1px solid #ffe58f; border-radius: 4px;">
-                <strong>物理觀察重點：</strong><br>
-                注意裁刀落下時，紅色紙屑不僅向右噴出，也會有部分碎屑<strong>向左噴往滾輪方向</strong>。這正是造成 TSP700II 內部積塵的原因。
+                <strong>構造說明：</strong><br>
+                TSP700II 採用鍘刀式裁刀。動畫演示了裁切時，紙張纖維碎屑如何因物理作用力反向噴濺至滾輪與熱感頭區域。
             </div>
         </aside>
     </div>
@@ -181,10 +185,10 @@
 
                 if (state.cutterY >= 0 && !hasSprayed) {
                     hasSprayed = true;
-                    spawnDust(); // 觸發物理紙屑
+                    spawnDust();
                 }
 
-                if (state.cutterY >= 15) { // 切到底
+                if (state.cutterY >= 15) {
                     state.cutterY = 15;
                     svg.cutter.setAttribute("transform", `translate(0, 15)`);
                     updateUI("裁切完畢。等待復歸...", 2, false);
@@ -218,8 +222,7 @@
         function spawnDust() {
             svg.particles.forEach(p => {
                 p.style.opacity = 1;
-                // 修正2：噴濺方向調整。 vx 現在有較大概率產生向左(負值)的速度
-                const vx = (Math.random() - 0.7) * 12; // -8.4 到 +3.6，偏向左側(滾輪方向)
+                const vx = (Math.random() - 0.7) * 12; // 偏向左側噴發
                 const vy = -(Math.random() * 8 + 2);
                 let px = 0, py = 0, curVy = vy, life = 1.0;
 
